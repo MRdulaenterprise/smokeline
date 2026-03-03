@@ -1,0 +1,14 @@
+### Secrets / local config
+.env
+.env.*
+
+### Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+### Smokeline SAM scanner outputs
+smokeline_sam_results.txt
+smokeline_sam_results.json
+

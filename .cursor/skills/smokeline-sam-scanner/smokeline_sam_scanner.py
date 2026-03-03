@@ -5,21 +5,26 @@ Scans federal contract opportunities matching forestry/tree/ROW services.
 
 Usage:
     pip install requests
+    export SAM_GOV_API_KEY="YOUR_KEY"
     python smokeline_sam_scanner.py
 
 Results are saved to: smokeline_sam_results.txt (human-readable report)
                   and: smokeline_sam_results.json (raw data)
 """
 
-import requests
+from __future__ import annotations
+
 import json
+import os
 from datetime import datetime, timedelta
+
+import requests
 
 # ─────────────────────────────────────────────
 #  CONFIGURATION — Edit as needed
 # ─────────────────────────────────────────────
 
-API_KEY = "SAM-01ac97b1-19f8-4188-91b6-c4819cd60c11"  # Your SAM.gov public API key
+API_KEY = os.getenv("SAM_GOV_API_KEY", "").strip()
 
 DAYS_BACK = 90  # How far back to search (90 = last 3 months)
 
@@ -48,11 +53,18 @@ EXPANDED_KEYWORDS = [
 
 BASE_URL = "https://api.sam.gov/prod/opportunities/v2/search"
 
+
 # ─────────────────────────────────────────────
 #  SCAN LOGIC
 # ─────────────────────────────────────────────
 
 def run_scan():
+    if not API_KEY:
+        raise SystemExit(
+            "Missing SAM.gov API key. Set environment variable SAM_GOV_API_KEY "
+            "and re-run (example: export SAM_GOV_API_KEY='YOUR_KEY')."
+        )
+
     end_date = datetime.today()
     start_date = end_date - timedelta(days=DAYS_BACK)
 
@@ -97,7 +109,7 @@ def run_scan():
                     elif nid:
                         all_results[nid]["_matched_keywords"].append(kw)
             elif resp.status_code == 429:
-                print(f"  ✗  '{kw}' → RATE LIMIT HIT (10/day max). Stopping.")
+                print(f"  ✗  '{kw}' → RATE LIMIT HIT. Stopping.")
                 errors[kw] = "Rate limit exceeded"
                 break
             elif resp.status_code == 401:
@@ -131,20 +143,21 @@ LOW_FIT_KEYWORDS = ["landscaping", "land clearing", "grounds"]
 
 IT_NOISE_TERMS = ["software", "IT", "cyber", "data", "network", "cloud", "system", "tree diagram"]
 
+
 def score_opportunity(opp):
     title = (opp.get("title") or "").lower()
     keywords = [k.lower() for k in opp.get("_matched_keywords", [])]
 
-    # Deprioritize obvious IT/non-forestry false positives
     for noise in IT_NOISE_TERMS:
         if noise.lower() in title:
             return "low"
 
+    joined = " ".join(keywords)
     for kw in HIGH_FIT_KEYWORDS:
-        if kw in title or kw in " ".join(keywords):
+        if kw in title or kw in joined:
             return "high"
     for kw in MEDIUM_FIT_KEYWORDS:
-        if kw in title or kw in " ".join(keywords):
+        if kw in title or kw in joined:
             return "medium"
     return "low"
 
@@ -167,7 +180,7 @@ def format_deadline(dl):
         elif days_left <= 14:
             flag = f" ⚡ {days_left}d left"
         return dt.strftime("%Y-%m-%d") + flag
-    except:
+    except Exception:
         return dl[:10] if len(dl) >= 10 else dl
 
 
@@ -184,18 +197,26 @@ def get_contact(opp):
     return "Not listed"
 
 
+def _safe_days(dl):
+    if not dl:
+        return None
+    try:
+        dt = datetime.fromisoformat(dl.replace("Z", ""))
+        return (dt - datetime.now()).days
+    except Exception:
+        return None
+
+
 def generate_report(all_results, keyword_counts, errors, date_from, date_to):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     today = datetime.now()
 
-    # Score and sort
     scored = []
     for opp in all_results.values():
         score = score_opportunity(opp)
         opp["_relevance"] = score
         scored.append(opp)
 
-    # Filter: skip expired deadlines for main report
     active_opps = []
     for opp in scored:
         dl = opp.get("responseDeadLine")
@@ -204,23 +225,27 @@ def generate_report(all_results, keyword_counts, errors, date_from, date_to):
                 dt = datetime.fromisoformat(dl.replace("Z", ""))
                 if dt < today:
                     continue
-            except:
+            except Exception:
                 pass
         active_opps.append(opp)
 
-    # Sort: high fit first, then by deadline
     priority_order = {"high": 0, "medium": 1, "low": 2}
-    active_opps.sort(key=lambda x: (
-        priority_order.get(x.get("_relevance", "low"), 2),
-        x.get("responseDeadLine") or "9999"
-    ))
+    active_opps.sort(
+        key=lambda x: (
+            priority_order.get(x.get("_relevance", "low"), 2),
+            x.get("responseDeadLine") or "9999",
+        )
+    )
 
     high = [o for o in active_opps if o["_relevance"] == "high"]
     medium = [o for o in active_opps if o["_relevance"] == "medium"]
     low = [o for o in active_opps if o["_relevance"] == "low"]
-    urgent = [o for o in active_opps if o.get("responseDeadLine") and
-              (datetime.fromisoformat(o["responseDeadLine"].replace("Z", "")) - today).days <= 14
-              if _safe_days(o.get("responseDeadLine")) is not None]
+
+    urgent = []
+    for o in active_opps:
+        days = _safe_days(o.get("responseDeadLine"))
+        if days is not None and days <= 14:
+            urgent.append(o)
 
     lines = []
     lines.append("=" * 70)
@@ -235,7 +260,6 @@ def generate_report(all_results, keyword_counts, errors, date_from, date_to):
     if errors:
         lines.append(f"\n  ⚠️  Keyword errors: {', '.join(errors.keys())}")
 
-    # Keyword summary
     lines.append("\n" + "-" * 70)
     lines.append("  RESULTS BY KEYWORD")
     lines.append("-" * 70)
@@ -288,7 +312,6 @@ def generate_report(all_results, keyword_counts, errors, date_from, date_to):
         for i, opp in enumerate(low, 1):
             lines.append(opp_block(opp, i))
 
-    # Top picks
     top_picks = high[:3] if high else medium[:3]
     if top_picks:
         lines.append("\n" + "=" * 70)
@@ -320,25 +343,13 @@ def generate_report(all_results, keyword_counts, errors, date_from, date_to):
     lines.append("  1. Review high-fit opportunities first — open each SAM.gov link")
     lines.append("  2. Download solicitation attachments for full scope of work")
     lines.append("  3. Contact the POC early with any scope questions")
-    lines.append("  4. Confirm Smokeline is registered on SAM.gov as a vendor")
-    lines.append("     (required to bid): https://sam.gov/content/entity-registration")
-    lines.append("  5. Check size standard for NAICS 115310: $9M annual receipts")
-    lines.append("  6. Watch for USFS, BLM, FEMA, and Army Corps of Engineers awards")
+    lines.append("  4. Confirm you are registered on SAM.gov as a vendor (required to bid)")
+    lines.append("  5. Validate NAICS/size standard for the specific solicitation")
     lines.append("=" * 70)
     lines.append("\n  Raw data saved to: smokeline_sam_results.json")
     lines.append("=" * 70)
 
     return "\n".join(lines)
-
-
-def _safe_days(dl):
-    if not dl:
-        return None
-    try:
-        dt = datetime.fromisoformat(dl.replace("Z", ""))
-        return (dt - datetime.now()).days
-    except:
-        return None
 
 
 # ─────────────────────────────────────────────
@@ -350,23 +361,26 @@ if __name__ == "__main__":
 
     report = generate_report(all_results, keyword_counts, errors, date_from, date_to)
 
-    # Save human-readable report
     report_file = "smokeline_sam_results.txt"
     with open(report_file, "w") as f:
         f.write(report)
 
-    # Save raw JSON
     json_file = "smokeline_sam_results.json"
     with open(json_file, "w") as f:
-        json.dump({
-            "scan_date": datetime.now().isoformat(),
-            "date_range": {"from": date_from, "to": date_to},
-            "total_unique": len(all_results),
-            "keyword_counts": keyword_counts,
-            "errors": errors,
-            "opportunities": list(all_results.values()),
-        }, f, indent=2)
+        json.dump(
+            {
+                "scan_date": datetime.now().isoformat(),
+                "date_range": {"from": date_from, "to": date_to},
+                "total_unique": len(all_results),
+                "keyword_counts": keyword_counts,
+                "errors": errors,
+                "opportunities": list(all_results.values()),
+            },
+            f,
+            indent=2,
+        )
 
     print(report)
     print(f"\n  ✅ Report saved to: {report_file}")
     print(f"  ✅ Raw data saved to: {json_file}")
+

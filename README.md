@@ -1,23 +1,61 @@
-# Smokeline — SAM.gov Opportunity Scanner
+# Smokeline — Cursor Skills Pack (SAM.gov + GovCon)
 
-Federal contract opportunity scanner for **Smokeline Forestry** (Wilmington, NC) and similar forestry / right-of-way / vegetation management contractors. Searches [SAM.gov](https://sam.gov) for opportunities matching forestry, tree, ROW clearing, utility forestry, wildfire management, trail management, and related keywords.
+This repo is organized as a **multi-skill** pack for Cursor, focused on:
 
-## What’s in this repo
+- Finding opportunities on **SAM.gov**
+- Writing **U.S. federal proposals** (compliance-first, Section L/M traceability, DOCX-ready outlines)
 
-- **smokeline_sam_scanner.py** — Python script that calls the SAM.gov Opportunities API, scores results (high/medium/low fit), and writes a human-readable report and JSON.
-- **SKILL.md** — Step-by-step guide (get API key, configure script, run, read reports, next steps for bidding). For use as an OpenClaw skill or as a standalone walkthrough.
-- **skill.yaml** — OpenClaw skill manifest; use with OpenClaw if you install this repo as a skill.
+## How to use (Cursor)
 
-## Quick start
+- **Use in this repo**: open this repository in Cursor. Project skills live under `.cursor/skills/`.
+- **Use in another repo**: copy `.cursor/skills/` into the other repository (same path).
 
-1. **Get a SAM.gov API key** — Log in at [sam.gov](https://sam.gov), request a public API key (Opportunities API). Note: ~10 requests/day for unregistered keys.
-2. **Configure** — Edit `smokeline_sam_scanner.py` and set `API_KEY` to your key. Optionally adjust `DAYS_BACK` and `KEYWORDS`.
-3. **Run** — `pip install requests` then `python3 smokeline_sam_scanner.py`. Results are written to `smokeline_sam_results.txt` and `smokeline_sam_results.json` in the current directory.
+## Repo structure
 
-For full instructions (prerequisites, troubleshooting, next steps for bidding), follow **SKILL.md**.
+Skills are stored as:
 
-## Repo
+- `.cursor/skills/<skill-name>/SKILL.md`
 
-- **GitHub:** [MRdulaenterprise/smokeline](https://github.com/MRdulaenterprise/smokeline)
+## Skills included
 
-**Proprietary.** MRDula Enterprise, LLC. All rights reserved.
+- **`smokeline-sam-scanner`** (`.cursor/skills/smokeline-sam-scanner/`)
+  - Scans SAM.gov Opportunities API for matches and generates `smokeline_sam_results.txt` + `smokeline_sam_results.json`.
+  - Includes the runnable script and a step-by-step skill guide.
+
+- **`federal-proposal-writer`** (`.cursor/skills/federal-proposal-writer/`)
+  - Compliance-first proposal drafting workflow (Section L/M), compliance matrix, and **DOCX-ready outlines**.
+
+## Example prompts (Cursor chat)
+
+- “Run the `smokeline-sam-scanner` and summarize the top 5 opportunities.”
+- “Use `federal-proposal-writer` to build a compliance matrix from Section L/M.”
+
+## Quick start: SAM.gov scanner
+
+1. **Set API key (recommended via env var)**:
+
+```bash
+export SAM_GOV_API_KEY="YOUR_KEY"
+```
+
+2. **Install dependency + run**:
+
+```bash
+pip install requests
+python3 ".cursor/skills/smokeline-sam-scanner/smokeline_sam_scanner.py"
+```
+
+Outputs are written to your current directory:
+- `smokeline_sam_results.txt`
+- `smokeline_sam_results.json`
+
+## Notes
+
+- **Security**: do not commit API keys. Use environment variables (or a local `.env` ignored by git).
+
+## Adding a new skill
+
+1. Create a new folder under `.cursor/skills/<new-skill-name>/`
+2. Add `SKILL.md` with YAML frontmatter (`name`, `description`)
+3. Keep the main `SKILL.md` concise; put longer templates in a sibling markdown file.
+
