@@ -1,0 +1,19 @@
+# OpenClaw Skill Manifest
+name: smokeline-sam-scanner
+version: 1.0.0
+author: MRdulaenterprise
+description: "Run the Smokeline SAM.gov opportunity scanner. Get a SAM.gov API key, configure and run the script, read the report (high/medium/low fit, deadlines), and take next steps for bidding. For Smokeline Forestry (Wilmington, NC) and similar forestry/ROW contractors."
+license: MIT
+
+permissions:
+  - shell
+  - network
+  - filesystem
+
+entryPoint:
+  type: natural
+  prompt: |
+    Follow SKILL.md in this skill folder to help the user run the Smokeline SAM.gov scanner. Guide them through getting a SAM.gov API key, setting SAM_GOV_API_KEY in their environment, running the scanner script from this skill directory, reading the text and JSON reports, and next steps (review high-fit opportunities, POC contact, SAM.gov registration). Do not ask for or store the API key in chat.
+
+triggers:
+  keywords: ["smokeline sam", "sam scanner", "sam.gov scanner", "federal contracts forestry", "smokeline forestry", "opportunity scanner"]

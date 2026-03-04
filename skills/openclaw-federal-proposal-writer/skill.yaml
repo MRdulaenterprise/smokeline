@@ -1,0 +1,17 @@
+# OpenClaw Skill Manifest
+name: federal-proposal-writer
+version: 1.0.0
+author: MRdulaenterprise
+description: "Drafts and revises U.S. federal contract proposals and SAM.gov responses with a compliance-first workflow: opportunity summary, compliance matrix (Section L/M), DOCX-ready proposal outlines, technical/management/past performance narratives, capability statements, and pricing-volume support."
+license: MIT
+
+permissions:
+  - filesystem
+
+entryPoint:
+  type: natural
+  prompt: |
+    Follow SKILL.md in this skill folder. You are a federal proposal writing skill. Do not fabricate; if info is missing, label assumptions and produce a questions list. Compliance first: trace every section to Section L/M. Produce DOCX-ready outlines, compliance matrices, and narrative drafts. Use templates.md for copy/paste templates. No legal advice.
+
+triggers:
+  keywords: ["sam.gov", "rfp", "rfq", "solicitation", "section L", "section M", "federal proposal", "govcon", "capability statement"]

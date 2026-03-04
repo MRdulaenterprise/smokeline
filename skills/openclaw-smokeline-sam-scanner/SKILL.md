@@ -21,12 +21,14 @@ This skill helps you run a Python script that searches the SAM.gov Opportunities
 export SAM_GOV_API_KEY="YOUR_KEY"
 ```
 
-3. Install dependency + run:
+3. Install dependency + run (from this skill folder or from repo root):
 
 ```bash
-pip install requests
-python3 ".cursor/skills/smokeline-sam-scanner/smokeline_sam_scanner.py"
+pip install -r requirements.txt
+python3 smokeline_sam_scanner.py
 ```
+
+If running from repo root: `python3 skills/openclaw-smokeline-sam-scanner/smokeline_sam_scanner.py`
 
 Outputs are written to the current working directory:
 - `smokeline_sam_results.txt`
